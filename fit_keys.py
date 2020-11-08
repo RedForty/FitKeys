@@ -1,12 +1,15 @@
 # --------------------------------------------------------------------------- #
+# Imports
 
 from maya import cmds
 
 # --------------------------------------------------------------------------- #
+# Globals
 
 GRAPH_EDITOR = 'graphEditor1GraphEd'
 
 # --------------------------------------------------------------------------- #
+# The main show
 
 def run():
     # get the key selection
@@ -49,15 +52,19 @@ def run():
 
         # Offset both the pivot and the end toward the 'floor'
         # Not sure why this works. Stumbled upon it at 2am. Too tired.
-        post_delta_scale = (key_values[-1] - left_pivot) / (new_values[-1] - left_pivot)
+        post_delta_scale = (right_pivot - left_pivot) / (new_values[-1] - left_pivot)
         
         # Scale set to fit
-        new_values_scaled = []
         for index, key in enumerate(new_values):
-            new_value = ((key - left_pivot) * post_delta_scale) + left_pivot
-            new_values_scaled.append(new_value)
+            new_values[index] = ((key - left_pivot) * post_delta_scale) + left_pivot
         
         # Do the magic, do the magic!
         for index, key in enumerate(selected_index):
-            cmds.keyframe(curve, index=(key,), valueChange=new_values_scaled[index])
+            cmds.keyframe(curve, index=(key,), valueChange=new_values[index])
 
+
+# --------------------------------------------------------------------------- #
+# Developer section
+
+if __name__ == '__main__':
+    run()
