@@ -9,6 +9,12 @@ from maya import cmds
 GRAPH_EDITOR = 'graphEditor1GraphEd'
 
 # --------------------------------------------------------------------------- #
+# Helpers
+
+def is_equal(lst):
+    return not lst or lst.count(lst[0]) == len(lst)
+
+# --------------------------------------------------------------------------- #
 # The main show
 
 def run():
@@ -25,17 +31,20 @@ def run():
     for curve in selected_curves:
         selected_index = cmds.keyframe(curve, q=True, selected=True, indexValue=True)
         num_keys       = cmds.keyframe(curve, q=True, indexValue=True)
+        index_range    = range(selected_index[0], selected_index[-1]+1)
 
-        pre_key_pivot  = min(selected_index)-1
+        pre_key_pivot  = min(index_range)-1
         if pre_key_pivot <= 0: pre_key_pivot = 0 # Just in case the first key is selected
-        post_key_pivot = max(selected_index)+1
+        post_key_pivot = max(index_range)+1
         if post_key_pivot >= len(num_keys): post_key_pivot = max(num_keys) # Just in case the last key is selected
 
         key_values = []
-        for index in selected_index:
+        for index in index_range:
             value = cmds.keyframe(curve, q=True, index=(index,), eval=True, valueChange=True)
             key_values.extend(value)
-
+        
+        if is_equal(key_values): continue # Ignore flat curves
+        
         # get the values of the pivots
         left_pivot  = cmds.keyframe(curve, q=True, index=(pre_key_pivot,), eval=True, valueChange=True)[0]
         right_pivot = cmds.keyframe(curve, q=True, index=(post_key_pivot,), eval=True, valueChange=True)[0]
@@ -59,7 +68,7 @@ def run():
             new_values[index] = ((key - left_pivot) * post_delta_scale) + left_pivot
         
         # Do the magic, do the magic!
-        for index, key in enumerate(selected_index):
+        for index, key in enumerate(index_range):
             cmds.keyframe(curve, index=(key,), valueChange=new_values[index])
 
 
