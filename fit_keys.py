@@ -46,7 +46,7 @@ def get_selected_keyframes():
 
     # get the key selection
     if not cmds.animCurveEditor(GRAPH_EDITOR, exists=True):
-        cmds.error("No GraphEditor found.")
+        cmds.error("{} not found.".format(GRAPH_EDITOR))
         return # Cannot find graph editor?
 
     if not cmds.animCurveEditor(GRAPH_EDITOR, q=True, areCurvesSelected=True):
@@ -207,7 +207,7 @@ def complete_skew(*args):
     SNAPSHOT = False
     KEY_DATA = None
     cmds.undoInfo(closeChunk=True)
-    cmds.floatSlider(SLIDER_SKEW, edit=True, value=0)
+    cmds.floatSliderGrp(SLIDER_SKEW, edit=True, value=0)
 
 def complete_scale(*args):
     global SNAPSHOT
@@ -215,7 +215,7 @@ def complete_scale(*args):
     SNAPSHOT = False
     KEY_DATA = None
     cmds.undoInfo(closeChunk=True)
-    cmds.floatSlider(SLIDER_SCALE, edit=True, value=0)
+    cmds.floatSliderGrp(SLIDER_SCALE, edit=True, value=0)
 
 
 def run(slider_value = None):
@@ -233,8 +233,8 @@ def ui():
     global SLIDER_SKEW
     cmds.window()
     cmds.columnLayout( adjustableColumn=True )
-    SLIDER_SCALE = cmds.floatSlider( min=0.0, max=1.0, value=0, step=0.01, dragCommand=update_scale, changeCommand=complete_scale )
-    SLIDER_SKEW = cmds.floatSlider( min=0.0, max=1.0, value=0, step=0.01, dragCommand=update_skew, changeCommand=complete_skew )
+    SLIDER_SCALE = cmds.floatSliderGrp( label='Scale ', field=False, min=0.0, max=1.0, value=0, step=0.01, dragCommand=update_scale, changeCommand=complete_scale )
+    SLIDER_SKEW = cmds.floatSliderGrp( label='Skew ', field=False, min=0.0, max=1.0, value=0, step=0.01, dragCommand=update_skew, changeCommand=complete_skew )
     cmds.showWindow()    
 
 # --------------------------------------------------------------------------- #
@@ -246,7 +246,5 @@ if __name__ == '__main__':
 
 
 # Thanks Joe!
-
-
 
 
