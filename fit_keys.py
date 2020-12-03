@@ -1,3 +1,16 @@
+# Tool to fit selected keys to previous and next unselected key
+'''
+Install: 
+Place this script in your USERNAME/Documents/maya/scripts folder
+
+Usage (python script):
+# begin
+import fit_keys
+fit_keys.ui()
+# end
+
+
+'''
 # --------------------------------------------------------------------------- #
 # Imports
 
