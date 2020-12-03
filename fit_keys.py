@@ -167,14 +167,17 @@ def apply_values(curve, times, values):
         cmds.keyframe(curve, e=True, time=(time,), valueChange=value)
 
 
-def update_skew(*args):
+def begin():
     global SNAPSHOT
     if not SNAPSHOT:
         global KEY_DATA
         KEY_DATA = get_selected_keyframes()
         SNAPSHOT = True
         cmds.undoInfo(openChunk=True)
-        
+
+
+def update_skew(*args):
+    begin()
     SLIDER_VALUE = args[0]
     if KEY_DATA:
         for curve, data in KEY_DATA.items():
@@ -185,48 +188,43 @@ def update_skew(*args):
 
 
 def update_scale(*args):
-    global SNAPSHOT
-    if not SNAPSHOT:
-        global KEY_DATA
-        KEY_DATA = get_selected_keyframes()
-        SNAPSHOT = True
-        cmds.undoInfo(openChunk=True)
-        
+    begin()
     SLIDER_VALUE = args[0]
     if KEY_DATA:
         for curve, data in KEY_DATA.items():
             times, values = data
+            if values[1] == values[-2]: continue
             # new_values = fit_skew(times, values, SLIDER_VALUE)
             new_values = fit_scale(times, values, SLIDER_VALUE)
             apply_values(curve, times[1:-1], new_values[1:-1])
 
 
-def complete_skew(*args):
+def end():
     global SNAPSHOT
     global KEY_DATA
     SNAPSHOT = False
     KEY_DATA = None
     cmds.undoInfo(closeChunk=True)
+
+
+def complete_skew(*args):
+    end()
     cmds.floatSliderGrp(SLIDER_SKEW, edit=True, value=0)
 
+
 def complete_scale(*args):
-    global SNAPSHOT
-    global KEY_DATA
-    SNAPSHOT = False
-    KEY_DATA = None
-    cmds.undoInfo(closeChunk=True)
+    end()
     cmds.floatSliderGrp(SLIDER_SCALE, edit=True, value=0)
 
 
-def run(slider_value = None):
-    global KEY_DATA
-    if slider_value == None:
-        slider_value = SLIDER_VALUE
+# def run(slider_value = None):
+#     global KEY_DATA
+#     if slider_value == None:
+#         slider_value = SLIDER_VALUE
     
-    KEY_DATA = get_selected_keyframes()
-    if not SLIDER: 
-        update(slider_value)
-
+#     KEY_DATA = get_selected_keyframes()
+#     if not SLIDER: 
+#         update(slider_value)
 
 def ui():
     global SLIDER_SCALE
