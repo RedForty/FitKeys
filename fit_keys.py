@@ -23,7 +23,7 @@ from maya import cmds
 
 SLIDER_VALUE = 0.85
 SLIDER_SCALE = None
-SLIDER_SKEW = None
+SLIDERS = []
 KEY_DATA = {}
 GRAPH_EDITOR = 'graphEditor1GraphEd'
 SNAPSHOT = False
@@ -120,6 +120,46 @@ def get_selected_keyframes():
         return None
         
 
+def skew(times, values, slider_value):
+    ''' Will skew values inside the pivots (first and last value) to 
+        match the first and last pivot.
+    '''
+
+    if slider_value >= 0:
+        slider_positive = True
+    else:
+        slider_positive = False
+    
+    percentage = abs(slider_value)
+
+    left_pivot = values[0] - values[1]
+    right_pivot = values[-2] - values[-1]
+
+    if slider_positive:
+        left_pivot = 0.0
+    else:
+        right_pivot = 0.0
+
+    new_values = [x + (left_pivot) for x in values] # Shift everything to match left pivot
+
+    for index, value in enumerate(new_values):
+        # print(value)
+        if index == 0 or index == len(values) - 1:
+            new_values[index] = value - left_pivot
+            continue
+
+        time_slope = 1 - (times[index] - times[1]) / (times[-2] - times[1])
+        offset_value = value - (right_pivot + left_pivot)
+        
+        # Then skew everything to right pivot by scaling along time slope.
+        new_value = ((value - offset_value) * time_slope) + offset_value
+        
+        new_values[index] = new_value
+
+    lerped_values = [lerp(x, y, percentage) for x, y in zip(values, new_values)]
+
+    return lerped_values
+
 
 def fit_skew(times, values, slider_value):
     ''' Will skew values inside the pivots (first and last value) to 
@@ -180,35 +220,56 @@ def apply_values(curve, times, values):
         cmds.keyframe(curve, e=True, time=(time,), valueChange=value)
 
 
-def begin():
+def begin(left=False, right=False):
     global SNAPSHOT
     if not SNAPSHOT:
         global KEY_DATA
         KEY_DATA = get_selected_keyframes()
+        if left:
+            for curve, data in KEY_DATA.items():
+                times, values = data
+                times.append(times[-1]+1)
+                values.append(values[-1])
+                KEY_DATA[curve] = [times, values]
+                
+        if right:
+            for curve, data in KEY_DATA.items():
+                times, values = data
+                times.insert(0, times[0]-1)
+                values.insert(0, values[0])
+                KEY_DATA[curve] = [times, values]
+                
         SNAPSHOT = True
         cmds.undoInfo(openChunk=True)
 
 
-def update_skew(*args):
+def update_skew_either(*args):
     begin()
-    SLIDER_VALUE = args[0]
+    slider_value = args[0]
     if KEY_DATA:
         for curve, data in KEY_DATA.items():
             times, values = data
-            new_values = fit_skew(times, values, SLIDER_VALUE)
-            # new_values = fit_scale(times, values, SLIDER_VALUE)
+            new_values = skew(times, values, slider_value)
+            apply_values(curve, times[1:-1], new_values[1:-1])
+
+def update_skew(*args):
+    begin()
+    slider_value = args[0]
+    if KEY_DATA:
+        for curve, data in KEY_DATA.items():
+            times, values = data
+            new_values = fit_skew(times, values, slider_value)
             apply_values(curve, times[1:-1], new_values[1:-1])
 
 
 def update_scale(*args):
     begin()
-    SLIDER_VALUE = args[0]
+    slider_value = args[0]
     if KEY_DATA:
         for curve, data in KEY_DATA.items():
             times, values = data
             if values[1] == values[-2]: continue
-            # new_values = fit_skew(times, values, SLIDER_VALUE)
-            new_values = fit_scale(times, values, SLIDER_VALUE)
+            new_values = fit_scale(times, values, slider_value)
             apply_values(curve, times[1:-1], new_values[1:-1])
 
 
@@ -222,7 +283,8 @@ def end():
 
 def complete_skew(*args):
     end()
-    cmds.floatSliderGrp(SLIDER_SKEW, edit=True, value=0)
+    for slider in SLIDERS:
+        cmds.floatSliderGrp(slider, edit=True, value=0)
 
 
 def complete_scale(*args):
@@ -239,14 +301,19 @@ def complete_scale(*args):
 #     if not SLIDER: 
 #         update(slider_value)
 
+
 def ui():
     global SLIDER_SCALE
-    global SLIDER_SKEW
-    cmds.window()
+    global SLIDERS
+    
+    window = cmds.window(title="Fit Keys", iconName='fitkeys', widthHeight=(500, 55))
     cmds.columnLayout( adjustableColumn=True )
-    SLIDER_SCALE = cmds.floatSliderGrp( label='Scale ', field=False, min=0.0, max=1.0, value=0, step=0.01, dragCommand=update_scale, changeCommand=complete_scale )
-    SLIDER_SKEW = cmds.floatSliderGrp( label='Skew ', field=False, min=0.0, max=1.0, value=0, step=0.01, dragCommand=update_skew, changeCommand=complete_skew )
-    cmds.showWindow()    
+    SLIDER_SCALE       = cmds.floatSliderGrp( label='Scale ', field=False, min=0.0, max=1.0, value=0.0, step=0.01, dragCommand=update_scale, changeCommand=complete_scale, adjustableColumn=2 )
+    SLIDER_SKEW_BOTH   = cmds.floatSliderGrp( label='Skew Both' , field=False, min=0.0, max=1.0, value=0.0, step=0.01, dragCommand=update_skew,  changeCommand=complete_skew, adjustableColumn=2  )
+    SLIDER_SKEW_EITHER = cmds.floatSliderGrp( label='Skew Either' , field=False, min=-1.0, max=1.0, value=0.0, step=0.01, dragCommand=update_skew_either,  changeCommand=complete_skew, adjustableColumn=2  )
+    SLIDERS.append(SLIDER_SKEW_BOTH)
+    SLIDERS.append(SLIDER_SKEW_EITHER)
+    cmds.showWindow(window)
 
 # --------------------------------------------------------------------------- #
 # Developer section
