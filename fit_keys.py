@@ -143,7 +143,6 @@ def skew(times, values, slider_value):
     new_values = [x + (left_pivot) for x in values] # Shift everything to match left pivot
 
     for index, value in enumerate(new_values):
-        # print(value)
         if index == 0 or index == len(values) - 1:
             new_values[index] = value - left_pivot
             continue
@@ -160,7 +159,58 @@ def skew(times, values, slider_value):
 
     return lerped_values
 
+def scale(times, values, slider_value):
+    ''' Will scale values inside the pivots (first and last value) to 
+        match the first and last pivot.
+    '''
 
+    if slider_value >= 0:
+        slider_positive = True
+    else:
+        slider_positive = False
+    
+    percentage = abs(slider_value)
+
+    left_pivot = values[0] - values[1]
+    right_pivot = values[-2] - values[-1]
+
+    if slider_positive:
+        # left_pivot = 0.0
+        # new_values = [x + (left_pivot) for x in values] # Shift everything to match left pivot
+        new_values = [x for x in values] # Shift everything to match left pivot
+        post_delta_scale = (values[-1] - values[1]) / (values[-2] - values[1]) # how much to scale the 2nd to last value to reach the last value
+        
+        for index, new_value in enumerate(new_values):
+            if index == 0 or index == len(values) - 1: 
+                new_values[index] = new_value - left_pivot
+                continue
+            
+            # Scale set to fit
+            scaled_value = ((new_value - values[1]) * post_delta_scale) + values[1]
+            new_values[index] = scaled_value
+            
+        lerped_values = [lerp(x, y, percentage) for x, y in zip(values, new_values)]
+
+        return lerped_values
+    else:
+        # right_pivot = 0.0
+        new_values = [x for x in values] # Shift everything to match left pivot
+        post_delta_scale = (values[0] - values[-2]) / (values[1] - values[-2]) # how much to scale the 2nd to last value to reach the last value
+        
+        for index, new_value in enumerate(new_values):
+            if index == 0 or index == len(values) - 1: 
+                new_values[index] = new_value - right_pivot
+                continue
+            
+            # Scale set to fit 
+            scaled_value = ((new_value - values[-2]) * post_delta_scale) + values[-2]
+            new_values[index] = scaled_value
+            
+        lerped_values = [lerp(x, y, percentage) for x, y in zip(values, new_values)]
+
+        return lerped_values
+
+    
 def fit_skew(times, values, slider_value):
     ''' Will skew values inside the pivots (first and last value) to 
         match the first and last pivot.
@@ -198,16 +248,16 @@ def fit_scale(times, values, slider_value):
     left_pivot = values[0] - values[1] 
 
     new_values = [x + (left_pivot) for x in values] # Shift everything to match left pivot
-    post_delta_scale = (values[-1] - values[0]) / (new_values[-2] - values[0])
+    post_delta_scale = (values[-1] - values[0]) / (new_values[-2] - values[0]) # how much to scale the 2nd to last value to reach the last value
     
-    for index, value in enumerate(new_values):
-        if index == 0 or index == len(values) + 1: 
-            new_values[index] = value - left_pivot
+    for index, new_value in enumerate(new_values):
+        if index == 0 or index == len(values) - 1: 
+            new_values[index] = new_value - left_pivot
             continue
         
         # Scale set to fit
-        new_value = ((value - values[0]) * post_delta_scale) + values[0]
-        new_values[index] = new_value
+        scaled_value = ((new_value - values[0]) * post_delta_scale) + values[0]
+        new_values[index] = scaled_value
         
     lerped_values = [lerp(x, y, slider_value) for x, y in zip(values, new_values)]
 
@@ -220,28 +270,24 @@ def apply_values(curve, times, values):
         cmds.keyframe(curve, e=True, time=(time,), valueChange=value)
 
 
-def begin(left=False, right=False):
+def begin():
     global SNAPSHOT
     if not SNAPSHOT:
         global KEY_DATA
         KEY_DATA = get_selected_keyframes()
-        if left:
-            for curve, data in KEY_DATA.items():
-                times, values = data
-                times.append(times[-1]+1)
-                values.append(values[-1])
-                KEY_DATA[curve] = [times, values]
-                
-        if right:
-            for curve, data in KEY_DATA.items():
-                times, values = data
-                times.insert(0, times[0]-1)
-                values.insert(0, values[0])
-                KEY_DATA[curve] = [times, values]
                 
         SNAPSHOT = True
         cmds.undoInfo(openChunk=True)
 
+
+def update_scale_either(*args):
+    begin()
+    slider_value = args[0]
+    if KEY_DATA:
+        for curve, data in KEY_DATA.items():
+            times, values = data
+            new_values = scale(times, values, slider_value)
+            apply_values(curve, times[1:-1], new_values[1:-1])
 
 def update_skew_either(*args):
     begin()
@@ -281,15 +327,10 @@ def end():
     cmds.undoInfo(closeChunk=True)
 
 
-def complete_skew(*args):
+def complete_operation(*args):
     end()
     for slider in SLIDERS:
         cmds.floatSliderGrp(slider, edit=True, value=0)
-
-
-def complete_scale(*args):
-    end()
-    cmds.floatSliderGrp(SLIDER_SCALE, edit=True, value=0)
 
 
 # def run(slider_value = None):
@@ -306,13 +347,16 @@ def ui():
     global SLIDER_SCALE
     global SLIDERS
     
-    window = cmds.window(title="Fit Keys", iconName='fitkeys', widthHeight=(500, 55))
+    window = cmds.window(title="Fit Keys", iconName='fitkeys', widthHeight=(500, 72))
     cmds.columnLayout( adjustableColumn=True )
-    SLIDER_SCALE       = cmds.floatSliderGrp( label='Scale ', field=False, min=0.0, max=1.0, value=0.0, step=0.01, dragCommand=update_scale, changeCommand=complete_scale, adjustableColumn=2 )
-    SLIDER_SKEW_BOTH   = cmds.floatSliderGrp( label='Skew Both' , field=False, min=0.0, max=1.0, value=0.0, step=0.01, dragCommand=update_skew,  changeCommand=complete_skew, adjustableColumn=2  )
-    SLIDER_SKEW_EITHER = cmds.floatSliderGrp( label='Skew Either' , field=False, min=-1.0, max=1.0, value=0.0, step=0.01, dragCommand=update_skew_either,  changeCommand=complete_skew, adjustableColumn=2  )
+    SLIDER_SCALE_BOTH   = cmds.floatSliderGrp( label='Scale Both ', field=False, min=0.0, max=1.0, value=0.0, step=0.01, dragCommand=update_scale, changeCommand=complete_operation, adjustableColumn=2 )
+    SLIDER_SCALE_EITHER = cmds.floatSliderGrp( label='Scale Either ', field=False, min=-1.0, max=1.0, value=0.0, step=0.01, dragCommand=update_scale_either, changeCommand=complete_operation, adjustableColumn=2 )
+    SLIDER_SKEW_BOTH    = cmds.floatSliderGrp( label='Skew Both' , field=False, min=0.0, max=1.0, value=0.0, step=0.01, dragCommand=update_skew,  changeCommand=complete_operation, adjustableColumn=2  )
+    SLIDER_SKEW_EITHER  = cmds.floatSliderGrp( label='Skew Either' , field=False, min=-1.0, max=1.0, value=0.0, step=0.01, dragCommand=update_skew_either,  changeCommand=complete_operation, adjustableColumn=2  )
     SLIDERS.append(SLIDER_SKEW_BOTH)
     SLIDERS.append(SLIDER_SKEW_EITHER)
+    SLIDERS.append(SLIDER_SCALE_BOTH)
+    SLIDERS.append(SLIDER_SCALE_EITHER)
     cmds.showWindow(window)
 
 # --------------------------------------------------------------------------- #
