@@ -1,6 +1,8 @@
 ## FitKeys
 Fit selected keys between two pivots (left and right)
 
+![hotkeyEditor](https://i.imgur.com/Gglu8Y4.gif)
+
 ## Install
 Download and put the fit_keys.py file in your <MY_DOCUMENTS>/maya/scripts/ folder.
 
