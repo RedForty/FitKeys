@@ -272,11 +272,11 @@ def shrink(times, values, slider_value, origin='left'):
     # Slider goes from -1.0 to 1.0 but we want to treat it like 0.0-2.0. 1.0 being the middle
     slider_multiply = slider_value + 1.0
     if origin == 'left':
-        origin_time = times[0]
-        origin_value = values[0]
+        origin_time = times[1] # not 0, because we want to use our selection as the pivot
+        origin_value = values[1] # not 0, because we want to use our selection as the pivot
     else:
-        origin_time = times[-1]
-        origin_value = values[-1]
+        origin_time = times[-2] # not -1, because we want to use our selection as the pivot
+        origin_value = values[-2] # not -1, because we want to use our selection as the pivot
 
     new_values = []
     new_times = []
@@ -438,5 +438,4 @@ if __name__ == '__main__':
 
 
 # Thanks Joe!
-
 
